@@ -9,15 +9,17 @@ import (
 )
 
 const (
-	maxTCPFrameLength int = 260
+	maxTCPFrameLength int = 1040 - mbapHeaderLength
+	maxUDPFrameLength int = 64 - mbapHeaderLength
 	mbapHeaderLength  int = 7
 )
 
 type tcpTransport struct {
-	logger    *logger
-	socket    net.Conn
-	timeout   time.Duration
-	lastTxnId uint16
+	logger         *logger
+	socket         net.Conn
+	timeout        time.Duration
+	maxFrameLength int
+	lastTxnId      uint16
 }
 
 // Returns a new TCP transport.
@@ -26,6 +28,12 @@ func newTCPTransport(socket net.Conn, timeout time.Duration, customLogger *log.L
 		socket:  socket,
 		timeout: timeout,
 		logger:  newLogger(fmt.Sprintf("tcp-transport(%s)", socket.RemoteAddr()), customLogger),
+	}
+	switch socket.(type) {
+	case *udpSockWrapper:
+		tt.maxFrameLength = maxUDPFrameLength
+	default:
+		tt.maxFrameLength = maxTCPFrameLength
 	}
 
 	return
@@ -151,7 +159,7 @@ func (tt *tcpTransport) readMBAPFrame() (p *pdu, txnId uint16, err error) {
 	bytesNeeded--
 
 	// never read more than the max allowed frame length
-	if bytesNeeded+mbapHeaderLength > maxTCPFrameLength {
+	if bytesNeeded+mbapHeaderLength > tt.maxFrameLength {
 		err = ErrProtocolError
 		return
 	}
