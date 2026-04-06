@@ -4,10 +4,10 @@ import (
 	"fmt"
 )
 
-type pdu struct {
-	unitId       uint8
-	functionCode uint8
-	payload      []byte
+type PDU struct {
+	UnitId       uint8
+	FunctionCode uint8
+	Payload      []byte
 }
 
 type Error string

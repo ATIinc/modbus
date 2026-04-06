@@ -11,9 +11,9 @@ const (
 	modbusTCPOverUDP transportType = 6
 )
 
-type transport interface {
+type Transport interface {
 	Close() error
-	ExecuteRequest(*pdu) (*pdu, error)
-	ReadRequest() (*pdu, error)
-	WriteResponse(*pdu) error
+	ExecuteRequest(*PDU) (*PDU, error)
+	ReadRequest() (*PDU, error)
+	WriteResponse(*PDU) error
 }

@@ -13,10 +13,10 @@ func TestAssembleRTUFrame(t *testing.T) {
 
 	rt = &rtuTransport{}
 
-	frame = rt.assembleRTUFrame(&pdu{
-		unitId:       0x33,
-		functionCode: 0x11,
-		payload:      []byte{0x22, 0x33, 0x44, 0x55},
+	frame = rt.assembleRTUFrame(&PDU{
+		UnitId:       0x33,
+		FunctionCode: 0x11,
+		Payload:      []byte{0x22, 0x33, 0x44, 0x55},
 	})
 	// expect 1 byte of unit id, 1 byte of function code, 4 bytes of payload and
 	// 2 bytes of CRC
@@ -34,10 +34,10 @@ func TestAssembleRTUFrame(t *testing.T) {
 		}
 	}
 
-	frame = rt.assembleRTUFrame(&pdu{
-		unitId:       0x31,
-		functionCode: 0x06,
-		payload:      []byte{0x12, 0x34},
+	frame = rt.assembleRTUFrame(&PDU{
+		UnitId:       0x31,
+		FunctionCode: 0x06,
+		Payload:      []byte{0x12, 0x34},
 	})
 	// expect 1 byte of unit if, 1 byte of function code, 2 bytes of payload and
 	// 2 bytes of CRC
@@ -62,7 +62,7 @@ func TestRTUTransportReadRTUFrame(t *testing.T) {
 	var p1, p2 net.Conn
 	var txchan chan []byte
 	var err error
-	var res *pdu
+	var res *PDU
 
 	txchan = make(chan []byte, 2)
 	p1, p2 = net.Pipe()
@@ -86,22 +86,21 @@ func TestRTUTransportReadRTUFrame(t *testing.T) {
 		0xc1, 0x6e, // CRC
 	}
 	res, err = rt.readRTUFrame()
-
 	if err != nil {
 		t.Errorf("readRTUFrame() should have succeeded, got %v", err)
 	}
-	if res.unitId != 0x31 {
-		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.unitId)
+	if res.UnitId != 0x31 {
+		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.UnitId)
 	}
-	if res.functionCode != 0x82 {
-		t.Errorf("expected 0x82 as function code, got 0x%02x", res.functionCode)
+	if res.FunctionCode != 0x82 {
+		t.Errorf("expected 0x82 as function code, got 0x%02x", res.FunctionCode)
 	}
-	if len(res.payload) != 1 {
-		t.Errorf("expected a length of 1, got %v", len(res.payload))
+	if len(res.Payload) != 1 {
+		t.Errorf("expected a length of 1, got %v", len(res.Payload))
 	}
-	if res.payload[0] != 0x02 {
+	if res.Payload[0] != 0x02 {
 		t.Errorf("expected {0x02} as payload, got {0x%02x}",
-			res.payload[0])
+			res.Payload[0])
 	}
 
 	// read a frame with a bad crc
@@ -127,23 +126,23 @@ func TestRTUTransportReadRTUFrame(t *testing.T) {
 	if err != nil {
 		t.Errorf("readRTUFrame() should have succeeded, got %v", err)
 	}
-	if res.unitId != 0x31 {
-		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.unitId)
+	if res.UnitId != 0x31 {
+		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.UnitId)
 	}
-	if res.functionCode != 0x03 {
-		t.Errorf("expected 0x03 as function code, got 0x%02x", res.functionCode)
+	if res.FunctionCode != 0x03 {
+		t.Errorf("expected 0x03 as function code, got 0x%02x", res.FunctionCode)
 	}
-	if len(res.payload) != 5 {
-		t.Errorf("expected a length of 5, got %v", len(res.payload))
+	if len(res.Payload) != 5 {
+		t.Errorf("expected a length of 5, got %v", len(res.Payload))
 	}
 	for i, b := range []byte{
 		0x04,
 		0x11, 0x22,
 		0x33, 0x44,
 	} {
-		if res.payload[i] != b {
+		if res.Payload[i] != b {
 			t.Errorf("expected 0x%02x at position %v, got 0x%02x",
-				b, i, res.payload[i])
+				b, i, res.Payload[i])
 		}
 	}
 

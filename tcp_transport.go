@@ -23,7 +23,7 @@ type tcpTransport struct {
 }
 
 // Returns a new TCP transport.
-func newTCPTransport(socket net.Conn, timeout time.Duration, customLogger *log.Logger) (tt *tcpTransport) {
+func NewTCPTransport(socket net.Conn, timeout time.Duration, customLogger *log.Logger) (tt *tcpTransport) {
 	tt = &tcpTransport{
 		socket:  socket,
 		timeout: timeout,
@@ -47,7 +47,7 @@ func (tt *tcpTransport) Close() (err error) {
 }
 
 // Runs a request across the socket and returns a response.
-func (tt *tcpTransport) ExecuteRequest(req *pdu) (res *pdu, err error) {
+func (tt *tcpTransport) ExecuteRequest(req *PDU) (res *PDU, err error) {
 	// set an i/o deadline on the socket (read and write)
 	err = tt.socket.SetDeadline(time.Now().Add(tt.timeout))
 	if err != nil {
@@ -62,13 +62,13 @@ func (tt *tcpTransport) ExecuteRequest(req *pdu) (res *pdu, err error) {
 		return
 	}
 
-	res, err = tt.readResponse()
+	res, err = tt.ReadResponse()
 
 	return
 }
 
 // Reads a request from the socket.
-func (tt *tcpTransport) ReadRequest() (req *pdu, err error) {
+func (tt *tcpTransport) ReadRequest() (req *PDU, err error) {
 	var txnId uint16
 
 	// set an i/o deadline on the socket (read and write)
@@ -89,7 +89,7 @@ func (tt *tcpTransport) ReadRequest() (req *pdu, err error) {
 }
 
 // Writes a response to the socket.
-func (tt *tcpTransport) WriteResponse(res *pdu) (err error) {
+func (tt *tcpTransport) WriteResponse(res *PDU) (err error) {
 	_, err = tt.socket.Write(tt.assembleMBAPFrame(tt.lastTxnId, res))
 	if err != nil {
 		return
@@ -100,7 +100,7 @@ func (tt *tcpTransport) WriteResponse(res *pdu) (err error) {
 
 // Reads as many MBAP+modbus frames as necessary until either the response
 // matching tt.lastTxnId is received or an error occurs.
-func (tt *tcpTransport) readResponse() (res *pdu, err error) {
+func (tt *tcpTransport) ReadResponse() (res *PDU, err error) {
 	var txnId uint16
 
 	for {
@@ -132,7 +132,7 @@ func (tt *tcpTransport) readResponse() (res *pdu, err error) {
 }
 
 // Reads an entire frame (MBAP header + modbus PDU) from the socket.
-func (tt *tcpTransport) readMBAPFrame() (p *pdu, txnId uint16, err error) {
+func (tt *tcpTransport) readMBAPFrame() (p *PDU, txnId uint16, err error) {
 	var rxbuf []byte
 	var bytesNeeded int
 	var protocolId uint16
@@ -185,29 +185,29 @@ func (tt *tcpTransport) readMBAPFrame() (p *pdu, txnId uint16, err error) {
 	}
 
 	// store unit id, function code and payload in the PDU object
-	p = &pdu{
-		unitId:       unitId,
-		functionCode: rxbuf[0],
-		payload:      rxbuf[1:],
+	p = &PDU{
+		UnitId:       unitId,
+		FunctionCode: rxbuf[0],
+		Payload:      rxbuf[1:],
 	}
 
 	return
 }
 
 // Turns a PDU into an MBAP frame (MBAP header + PDU) and returns it as bytes.
-func (tt *tcpTransport) assembleMBAPFrame(txnId uint16, p *pdu) (payload []byte) {
+func (tt *tcpTransport) assembleMBAPFrame(txnId uint16, p *PDU) (payload []byte) {
 	// transaction identifier
 	payload = uint16ToBytes(BIG_ENDIAN, txnId)
 	// protocol identifier (always 0x0000)
 	payload = append(payload, 0x00, 0x00)
 	// length (covers unit identifier + function code + payload fields)
-	payload = append(payload, uint16ToBytes(BIG_ENDIAN, uint16(2+len(p.payload)))...)
+	payload = append(payload, uint16ToBytes(BIG_ENDIAN, uint16(2+len(p.Payload)))...)
 	// unit identifier
-	payload = append(payload, p.unitId)
+	payload = append(payload, p.UnitId)
 	// function code
-	payload = append(payload, p.functionCode)
+	payload = append(payload, p.FunctionCode)
 	// payload
-	payload = append(payload, p.payload...)
+	payload = append(payload, p.Payload...)
 
 	return
 }
