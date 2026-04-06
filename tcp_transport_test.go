@@ -8,10 +8,10 @@ import (
 )
 
 func TestAssembleMBAPFrame(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var frame []byte
 
-	tt = &tcpTransport{}
+	tt = &TCPTransport{}
 
 	frame = tt.assembleMBAPFrame(0x9219, &PDU{
 		UnitId:       0x33,
@@ -60,7 +60,7 @@ func TestAssembleMBAPFrame(t *testing.T) {
 }
 
 func TestTCPTransportReadResponse(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var p1, p2 net.Conn
 	var txchan chan []byte
 	var err error
@@ -209,7 +209,7 @@ func TestTCPTransportReadResponse(t *testing.T) {
 }
 
 func TestTCPTransportReadRequest(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var p1, p2 net.Conn
 	var txchan chan []byte
 	var err error
@@ -304,7 +304,7 @@ func TestTCPTransportReadRequest(t *testing.T) {
 }
 
 func TestTCPTransportWriteResponse(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var p1, p2 net.Conn
 	var done chan bool
 	var err error
