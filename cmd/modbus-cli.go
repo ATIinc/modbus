@@ -1064,7 +1064,7 @@ func performPing(client *modbus.ModbusClient, count uint16, interval time.Durati
 
 	startTs = time.Now()
 
-	for run := uint16(0); run < count; run++ {
+	for run := range count {
 		ts = time.Now()
 		_, err = client.ReadRegister(0x0000, modbus.HOLDING_REGISTER)
 

@@ -2,7 +2,6 @@ package modbus
 
 import (
 	"crypto/x509"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -77,7 +76,7 @@ func TestLoadCertPool(t *testing.T) {
 	}
 
 	// create an empty file and attempt to load it: should fail
-	fd, err = ioutil.TempFile("", "modbus_tls_utils_test")
+	fd, err = os.CreateTemp("", "modbus_tls_utils_test")
 	if err != nil {
 		t.Errorf("failed to create temp file: %v", err)
 		return
@@ -97,7 +96,7 @@ func TestLoadCertPool(t *testing.T) {
 	}
 
 	// put garbage into a file and attempt to load it: should fail
-	fd, err = ioutil.TempFile("", "modbus_tls_utils_test")
+	fd, err = os.CreateTemp("", "modbus_tls_utils_test")
 	if err != nil {
 		t.Errorf("failed to create temp file: %v", err)
 	}
@@ -120,7 +119,7 @@ func TestLoadCertPool(t *testing.T) {
 	}
 
 	// now write two certs to a file and try to load it: should succeed
-	fd, err = ioutil.TempFile("", "modbus_tls_utils_test")
+	fd, err = os.CreateTemp("", "modbus_tls_utils_test")
 	if err != nil {
 		t.Errorf("failed to create temp file: %v", err)
 	}

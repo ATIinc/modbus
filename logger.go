@@ -26,7 +26,7 @@ func (l *logger) Info(msg string) {
 	return
 }
 
-func (l *logger) Infof(format string, msg ...interface{}) {
+func (l *logger) Infof(format string, msg ...any) {
 	l.write(fmt.Sprintf("%s [info]: %s\n", l.prefix, fmt.Sprintf(format, msg...)))
 
 	return
@@ -38,7 +38,7 @@ func (l *logger) Warning(msg string) {
 	return
 }
 
-func (l *logger) Warningf(format string, msg ...interface{}) {
+func (l *logger) Warningf(format string, msg ...any) {
 	l.write(fmt.Sprintf("%s [warn]: %s\n", l.prefix, fmt.Sprintf(format, msg...)))
 
 	return
@@ -50,7 +50,7 @@ func (l *logger) Error(msg string) {
 	return
 }
 
-func (l *logger) Errorf(format string, msg ...interface{}) {
+func (l *logger) Errorf(format string, msg ...any) {
 	l.write(fmt.Sprintf("%s [error]: %s\n", l.prefix, fmt.Sprintf(format, msg...)))
 
 	return
@@ -63,7 +63,7 @@ func (l *logger) Fatal(msg string) {
 	return
 }
 
-func (l *logger) Fatalf(format string, msg ...interface{}) {
+func (l *logger) Fatalf(format string, msg ...any) {
 	l.Errorf(format, msg...)
 	os.Exit(1)
 
