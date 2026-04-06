@@ -1,15 +1,15 @@
 package modbus
 
 import (
-	"testing"
 	"io"
 	"net"
+	"testing"
 	"time"
 )
 
 func TestAssembleRTUFrame(t *testing.T) {
-	var rt		*rtuTransport
-	var frame	[]byte
+	var rt *rtuTransport
+	var frame []byte
 
 	rt = &rtuTransport{}
 
@@ -57,13 +57,12 @@ func TestAssembleRTUFrame(t *testing.T) {
 	return
 }
 
-
 func TestRTUTransportReadRTUFrame(t *testing.T) {
-	var rt		*rtuTransport
-	var p1, p2	net.Conn
-	var txchan	chan []byte
-	var err		error
-	var res		*pdu
+	var rt *rtuTransport
+	var p1, p2 net.Conn
+	var txchan chan []byte
+	var err error
+	var res *pdu
 
 	txchan = make(chan []byte, 2)
 	p1, p2 = net.Pipe()
@@ -73,12 +72,12 @@ func TestRTUTransportReadRTUFrame(t *testing.T) {
 	// data buffering by the RX path of the serial driver while the
 	// device is closed: the transport should discard it and
 	// proceed to normal operation
-	txchan <- []byte{0xfa, 0x8d, 0xcc, 0x1b, 0xf9,}
+	txchan <- []byte{0xfa, 0x8d, 0xcc, 0x1b, 0xf9}
 
-	rt = newRTUTransport(p2, "", 9600, 10 * time.Millisecond, nil)
+	rt = newRTUTransport(p2, "", 9600, 10*time.Millisecond, nil)
 
 	// arm a read/write timeout to avoid deadlocked tests
-	p2.SetDeadline(time.Now().Add(100*time.Millisecond))
+	p2.SetDeadline(time.Now().Add(100 * time.Millisecond))
 
 	// read a valid response (illegal data address)
 	txchan <- []byte{
@@ -102,7 +101,7 @@ func TestRTUTransportReadRTUFrame(t *testing.T) {
 	}
 	if res.payload[0] != 0x02 {
 		t.Errorf("expected {0x02} as payload, got {0x%02x}",
-			 res.payload[0])
+			res.payload[0])
 	}
 
 	// read a frame with a bad crc
@@ -144,7 +143,7 @@ func TestRTUTransportReadRTUFrame(t *testing.T) {
 	} {
 		if res.payload[i] != b {
 			t.Errorf("expected 0x%02x at position %v, got 0x%02x",
-				 b, i, res.payload[i])
+				b, i, res.payload[i])
 		}
 	}
 
@@ -155,7 +154,7 @@ func TestRTUTransportReadRTUFrame(t *testing.T) {
 }
 
 func feedTestPipe(t *testing.T, in chan []byte, out io.WriteCloser) {
-	var err   error
+	var err error
 	var txbuf []byte
 
 	for {
@@ -178,19 +177,19 @@ func TestModbusRTUSerialCharTime(t *testing.T) {
 
 	d = serialCharTime(38400)
 	// expect 11 bits at 38400bps: 11 * (1/38400) = 286.458uS
-	if d != time.Duration(286458) * time.Nanosecond {
+	if d != time.Duration(286458)*time.Nanosecond {
 		t.Errorf("unexpected serial char duration: %v", d)
 	}
 
 	d = serialCharTime(19200)
 	// expect 11 bits at 19200bps: 11 * (1/19200) = 572.916uS
-	if d != time.Duration(572916) * time.Nanosecond {
+	if d != time.Duration(572916)*time.Nanosecond {
 		t.Errorf("unexpected serial char duration: %v", d)
 	}
 
 	d = serialCharTime(9600)
 	// expect 11 bits at 9600bps: 11 * (1/9600) = 1.145833ms
-	if d != time.Duration(1145833) * time.Nanosecond {
+	if d != time.Duration(1145833)*time.Nanosecond {
 		t.Errorf("unexpected serial char duration: %v", d)
 	}
 
