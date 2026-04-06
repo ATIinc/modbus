@@ -405,7 +405,7 @@ func TestTLSClientOnServerTimeout(t *testing.T) {
 
 	// create the modbus client
 	client, err	= NewClient(&ClientConfiguration{
-		URL:           "tcp+tls://localhost:5802",
+		URL:           "tcp+tls://[::1]:5802",
 		TLSClientCert: &clientKeyPair,
 		TLSRootCAs:    clientCp,
 	})
@@ -416,7 +416,7 @@ func TestTLSClientOnServerTimeout(t *testing.T) {
 	// connect to the server: should succeed
 	err = client.Open()
 	if err != nil {
-		t.Errorf("Open() should have succeeded, got: %v", err)
+		t.Fatalf("Open() should have succeeded, got: %v", err)
 	}
 
 	// write a value to register #3: should succeed
