@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/simonvetter/modbus"
+	"github.com/ATIinc/modbus"
 )
 
 const (
@@ -224,18 +224,16 @@ func (eh *exampleHandler) HandleHoldingRegisters(req *modbus.HoldingRegistersReq
 		// expose the 16 most-significant bits of eh.holdingReg4 in register 200
 		case 200:
 			if req.IsWrite {
-				eh.holdingReg4 =
-					((uint32(req.Args[i])<<16)&0xffff0000 |
-						(eh.holdingReg4 & 0x0000ffff))
+				eh.holdingReg4 = ((uint32(req.Args[i])<<16)&0xffff0000 |
+					(eh.holdingReg4 & 0x0000ffff))
 			}
 			res = append(res, uint16((eh.holdingReg4>>16)&0x0000ffff))
 
 		// expose the 16 least-significant bits of eh.holdingReg4 in register 201
 		case 201:
 			if req.IsWrite {
-				eh.holdingReg4 =
-					(uint32(req.Args[i])&0x0000ffff |
-						(eh.holdingReg4 & 0xffff0000))
+				eh.holdingReg4 = (uint32(req.Args[i])&0x0000ffff |
+					(eh.holdingReg4 & 0xffff0000))
 			}
 			res = append(res, uint16(eh.holdingReg4&0x0000ffff))
 

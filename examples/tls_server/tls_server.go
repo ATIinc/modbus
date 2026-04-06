@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/simonvetter/modbus"
+	"github.com/ATIinc/modbus"
 )
 
 /* Modbus TCP+TLS (MBAPS or Modbus Security) server example.
@@ -205,18 +205,16 @@ func (eh *exampleHandler) HandleHoldingRegisters(req *modbus.HoldingRegistersReq
 		// expose the 16 most-significant bits of the clock in register #0
 		case 0:
 			if req.IsWrite {
-				eh.clock =
-					((uint32(req.Args[i])<<16)&0xffff0000 |
-						(eh.clock & 0x0000ffff))
+				eh.clock = ((uint32(req.Args[i])<<16)&0xffff0000 |
+					(eh.clock & 0x0000ffff))
 			}
 			res = append(res, uint16((eh.clock>>16)&0x0000ffff))
 
 		// expose the 16 least-significant bits of the clock in register #1
 		case 1:
 			if req.IsWrite {
-				eh.clock =
-					(uint32(req.Args[i])&0x0000ffff |
-						(eh.clock & 0xffff0000))
+				eh.clock = (uint32(req.Args[i])&0x0000ffff |
+					(eh.clock & 0xffff0000))
 			}
 			res = append(res, uint16(eh.clock&0x0000ffff))
 

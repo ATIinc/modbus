@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simonvetter/modbus"
+	"github.com/ATIinc/modbus"
 )
 
 func main() {
@@ -894,7 +894,7 @@ func parseFloat64(in string) (f64 float64, err error) {
 }
 
 func parseAddressAndQuantity(in string) (addr uint16, quantity uint16, err error) {
-	var split = strings.Split(in, "+")
+	split := strings.Split(in, "+")
 
 	switch {
 	case len(split) == 1:

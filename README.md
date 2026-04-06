@@ -1,5 +1,10 @@
 ## Go modbus stack
 
+**NOTE:** This is a fork from
+[simonvetter/modbus](https://github.com/simonvetter/modbus) with minor
+additions. The module name has been changed so that this can be imported without
+`replace` directives or `go.work` shenanigans.
+
 ### Description
 This package is a go implementation of the modbus protocol.
 It aims to provide a simple-to-use, high-level API to interact with modbus
@@ -33,14 +38,14 @@ $ ./modbus-cli --help
 
 ### Getting started
 ```bash
-$ go get github.com/simonvetter/modbus
+$ go get github.com/ATIinc/modbus
 ```
 
 ### Using the client
 
 ```golang
 import (
-    "github.com/simonvetter/modbus"
+    "github.com/ATIinc/modbus"
 )
 
 func main() {
