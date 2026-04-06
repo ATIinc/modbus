@@ -335,6 +335,10 @@ func (mc *ModbusClient) Close() (err error) {
 	return
 }
 
+func (mc *ModbusClient) Transport() Transport {
+	return mc.transport
+}
+
 // Sets the unit id of subsequent requests.
 func (mc *ModbusClient) SetUnitId(id uint8) (err error) {
 	mc.lock.Lock()

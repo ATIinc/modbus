@@ -2,10 +2,12 @@ package modbus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"time"
 )
 
@@ -78,7 +80,7 @@ func (tt *TCPTransport) ReadRequest() (req *PDU, err error) {
 		return
 	}
 
-	req, txnId, err = tt.readMBAPFrame()
+	req, txnId, err = tt.readMBAPFrame(0)
 	if err != nil {
 		return
 	}
@@ -106,7 +108,7 @@ func (tt *TCPTransport) ReadResponse() (res *PDU, err error) {
 
 	for {
 		// grab a frame
-		res, txnId, err = tt.readMBAPFrame()
+		res, txnId, err = tt.readMBAPFrame(0)
 
 		// ignore unknown protocol identifiers
 		if err == ErrUnknownProtocolId {
@@ -136,13 +138,17 @@ func (tt *TCPTransport) ReadResponse() (res *PDU, err error) {
 // until the context is cancelled or an error occurs.
 func (tt *TCPTransport) StreamResponses(ctx context.Context, data chan<- *PDU) error {
 	for {
-		if deadline, ok := ctx.Deadline(); ok {
-			_ = tt.socket.SetReadDeadline(deadline)
-		} else {
-			_ = tt.socket.SetReadDeadline(time.Now().Add(tt.timeout))
+		deadline := time.Now().Add(tt.timeout)
+		if deadline2, ok := ctx.Deadline(); ok {
+			// i/o timeouts can fire before the context cancels, add some buffer to avoid that
+			deadline2 = deadline2.Add(time.Millisecond)
+			if deadline2.Before(deadline) {
+				deadline = deadline2
+			}
 		}
-		// grab a frame
-		res, txnId, err := tt.readMBAPFrame()
+		_ = tt.socket.SetReadDeadline(deadline)
+		// grab a frame, this uses a non-standard protocol id
+		res, txnId, err := tt.readMBAPFrame(1)
 
 		// ignore unknown protocol identifiers
 		if err == ErrUnknownProtocolId {
@@ -151,17 +157,22 @@ func (tt *TCPTransport) StreamResponses(ctx context.Context, data chan<- *PDU) e
 
 		// abort on any other error
 		if err != nil {
+			ctxErr := ctx.Err()
+			if errors.Is(err, os.ErrDeadlineExceeded) && errors.Is(ctxErr, context.DeadlineExceeded) {
+				// read deadline was exceeded because context is canceled, ignore this
+				return nil
+			}
+			// TODO: we sometimes get the i/o deadline exceeded before the context is canceled
 			return err
 		}
 
 		// ignore unknown transaction identifiers
-		if tt.lastTxnId != txnId {
+		if txnId != tt.lastTxnId {
 			tt.logger.Warningf("received unexpected transaction id "+
 				"(expected 0x%04x, received 0x%04x)",
 				tt.lastTxnId, txnId)
-			// TODO: don't discard these frames until we know what to expect
-			// continue
 		}
+		tt.lastTxnId = txnId + 1
 
 		select {
 		case <-ctx.Done():
@@ -172,7 +183,9 @@ func (tt *TCPTransport) StreamResponses(ctx context.Context, data chan<- *PDU) e
 }
 
 // Reads an entire frame (MBAP header + modbus PDU) from the socket.
-func (tt *TCPTransport) readMBAPFrame() (p *PDU, txnId uint16, err error) {
+func (tt *TCPTransport) readMBAPFrame(
+	expectedProtocolId uint16,
+) (p *PDU, txnId uint16, err error) {
 	var rxbuf []byte
 	var bytesNeeded int
 	var protocolId uint16
@@ -218,7 +231,7 @@ func (tt *TCPTransport) readMBAPFrame() (p *PDU, txnId uint16, err error) {
 	}
 
 	// validate the protocol identifier
-	if protocolId != 0x0000 {
+	if protocolId != expectedProtocolId {
 		err = ErrUnknownProtocolId
 		tt.logger.Warningf("received unexpected protocol id 0x%04x", protocolId)
 		return
