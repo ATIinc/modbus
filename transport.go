@@ -1,5 +1,7 @@
 package modbus
 
+import "context"
+
 type transportType uint
 
 const (
@@ -16,4 +18,9 @@ type Transport interface {
 	ExecuteRequest(*PDU) (*PDU, error)
 	ReadRequest() (*PDU, error)
 	WriteResponse(*PDU) error
+}
+
+type StreamTransport interface {
+	Transport
+	StreamResponses(context.Context, chan<- *PDU) error
 }
