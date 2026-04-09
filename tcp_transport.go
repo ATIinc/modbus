@@ -157,8 +157,7 @@ func (tt *TCPTransport) StreamResponses(ctx context.Context, data chan<- *PDU) e
 
 		// abort on any other error
 		if err != nil {
-			ctxErr := ctx.Err()
-			if errors.Is(err, os.ErrDeadlineExceeded) && errors.Is(ctxErr, context.DeadlineExceeded) {
+			if errors.Is(err, os.ErrDeadlineExceeded) && ctx.Err() != nil {
 				// read deadline was exceeded because context is canceled, ignore this
 				return nil
 			}
