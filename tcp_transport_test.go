@@ -274,7 +274,7 @@ func TestTCPTransportReadRequest(t *testing.T) {
 		t.Errorf("ReadRequest() should have succeeded, got %v", err)
 	}
 	if req == nil {
-		t.Errorf("ReadREsponse() should have returned a non-nil request")
+		t.Errorf("ReadRequest() should have returned a non-nil request")
 	}
 	if req.UnitId != 0xfa {
 		t.Errorf("expected 0xfa as unit id, got 0x%02x", req.UnitId)
