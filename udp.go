@@ -16,7 +16,7 @@ type udpSockWrapper struct {
 
 func newUDPSockWrapper(sock net.Conn) (usw *udpSockWrapper) {
 	usw = &udpSockWrapper{
-		rxbuf: make([]byte, maxUDPFrameLength),
+		rxbuf: make([]byte, maxUDPFrameLength+mbapHeaderLength),
 		sock:  sock.(*net.UDPConn),
 	}
 
