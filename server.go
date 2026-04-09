@@ -155,7 +155,8 @@ type ModbusServer struct {
 // reqHandler should be a user-provided handler object satisfying the RequestHandler
 // interface.
 func NewServer(conf *ServerConfiguration, reqHandler RequestHandler) (
-	ms *ModbusServer, err error) {
+	ms *ModbusServer, err error,
+) {
 	var serverType string
 	var splitURL []string
 
@@ -338,7 +339,7 @@ func (ms *ModbusServer) handleTCPClient(sock net.Conn) {
 	case modbusTCP:
 		// serve modbus requests over the raw TCP connection
 		ms.handleTransport(
-			newTCPTransport(sock, ms.conf.Timeout, ms.conf.Logger),
+			NewTCPTransport(sock, ms.conf.Timeout, ms.conf.Logger),
 			sock.RemoteAddr().String(), "")
 
 	case modbusTCPOverTLS:
@@ -350,7 +351,7 @@ func (ms *ModbusServer) handleTCPClient(sock net.Conn) {
 		} else {
 			// serve modbus requests over the TLS tunnel
 			ms.handleTransport(
-				newTCPTransport(tlsSock, ms.conf.Timeout, ms.conf.Logger),
+				NewTCPTransport(tlsSock, ms.conf.Timeout, ms.conf.Logger),
 				sock.RemoteAddr().String(), clientRole)
 		}
 
@@ -378,9 +379,9 @@ func (ms *ModbusServer) handleTCPClient(sock net.Conn) {
 // For each request read from the transport, performs decoding and validation,
 // calls the user-provided handler, then encodes and writes the response
 // to the transport.
-func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRole string) {
-	var req *pdu
-	var res *pdu
+func (ms *ModbusServer) handleTransport(t Transport, clientAddr string, clientRole string) {
+	var req *PDU
+	var res *PDU
 	var err error
 	var addr uint16
 	var quantity uint16
@@ -391,19 +392,19 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			return
 		}
 
-		switch req.functionCode {
+		switch req.FunctionCode {
 		case fcReadCoils, fcReadDiscreteInputs:
 			var coils []bool
 			var resCount int
 
-			if len(req.payload) != 4 {
+			if len(req.Payload) != 4 {
 				err = ErrProtocolError
 				break
 			}
 
 			// decode address and quantity fields
-			addr = bytesToUint16(BIG_ENDIAN, req.payload[0:2])
-			quantity = bytesToUint16(BIG_ENDIAN, req.payload[2:4])
+			addr = bytesToUint16(BIG_ENDIAN, req.Payload[0:2])
+			quantity = bytesToUint16(BIG_ENDIAN, req.Payload[2:4])
 
 			// ensure the reply never exceeds the maximum PDU length and we
 			// never read past 0xffff
@@ -417,11 +418,11 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			}
 
 			// invoke the appropriate handler
-			if req.functionCode == fcReadCoils {
+			if req.FunctionCode == fcReadCoils {
 				coils, err = ms.handler.HandleCoils(&CoilsRequest{
 					ClientAddr: clientAddr,
 					ClientRole: clientRole,
-					UnitId:     req.unitId,
+					UnitId:     req.UnitId,
 					Addr:       addr,
 					Quantity:   quantity,
 					IsWrite:    false,
@@ -432,7 +433,7 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 					&DiscreteInputsRequest{
 						ClientAddr: clientAddr,
 						ClientRole: clientRole,
-						UnitId:     req.unitId,
+						UnitId:     req.UnitId,
 						Addr:       addr,
 						Quantity:   quantity,
 					})
@@ -452,33 +453,33 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			}
 
 			// assemble a response PDU
-			res = &pdu{
-				unitId:       req.unitId,
-				functionCode: req.functionCode,
-				payload:      []byte{0},
+			res = &PDU{
+				UnitId:       req.UnitId,
+				FunctionCode: req.FunctionCode,
+				Payload:      []byte{0},
 			}
 
 			// byte count (1 byte for 8 coils)
-			res.payload[0] = uint8(resCount / 8)
+			res.Payload[0] = uint8(resCount / 8)
 			if resCount%8 != 0 {
-				res.payload[0]++
+				res.Payload[0]++
 			}
 
 			// coil values
-			res.payload = append(res.payload, encodeBools(coils)...)
+			res.Payload = append(res.Payload, encodeBools(coils)...)
 
 		case fcWriteSingleCoil:
-			if len(req.payload) != 4 {
+			if len(req.Payload) != 4 {
 				err = ErrProtocolError
 				break
 			}
 
 			// decode the address field
-			addr = bytesToUint16(BIG_ENDIAN, req.payload[0:2])
+			addr = bytesToUint16(BIG_ENDIAN, req.Payload[0:2])
 
 			// validate the value field (should be either 0xff00 or 0x0000)
-			if (req.payload[2] != 0xff && req.payload[2] != 0x00) ||
-				req.payload[3] != 0x00 {
+			if (req.Payload[2] != 0xff && req.Payload[2] != 0x00) ||
+				req.Payload[3] != 0x00 {
 				err = ErrProtocolError
 				break
 			}
@@ -487,40 +488,39 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			_, err = ms.handler.HandleCoils(&CoilsRequest{
 				ClientAddr: clientAddr,
 				ClientRole: clientRole,
-				UnitId:     req.unitId,
+				UnitId:     req.UnitId,
 				Addr:       addr,
 				Quantity:   1,    // request for a single coil
 				IsWrite:    true, // this is a write request
-				Args:       []bool{(req.payload[2] == 0xff)},
+				Args:       []bool{(req.Payload[2] == 0xff)},
 			})
-
 			if err != nil {
 				break
 			}
 
 			// assemble a response PDU
-			res = &pdu{
-				unitId:       req.unitId,
-				functionCode: req.functionCode,
+			res = &PDU{
+				UnitId:       req.UnitId,
+				FunctionCode: req.FunctionCode,
 			}
 
 			// echo the address and value in the response
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16ToBytes(BIG_ENDIAN, addr)...)
-			res.payload = append(res.payload,
-				req.payload[2], req.payload[3])
+			res.Payload = append(res.Payload,
+				req.Payload[2], req.Payload[3])
 
 		case fcWriteMultipleCoils:
 			var expectedLen int
 
-			if len(req.payload) < 6 {
+			if len(req.Payload) < 6 {
 				err = ErrProtocolError
 				break
 			}
 
 			// decode address and quantity fields
-			addr = bytesToUint16(BIG_ENDIAN, req.payload[0:2])
-			quantity = bytesToUint16(BIG_ENDIAN, req.payload[2:4])
+			addr = bytesToUint16(BIG_ENDIAN, req.Payload[0:2])
+			quantity = bytesToUint16(BIG_ENDIAN, req.Payload[2:4])
 
 			// ensure the reply never exceeds the maximum PDU length and we
 			// never read past 0xffff
@@ -539,13 +539,13 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 				expectedLen++
 			}
 
-			if req.payload[4] != uint8(expectedLen) {
+			if req.Payload[4] != uint8(expectedLen) {
 				err = ErrProtocolError
 				break
 			}
 
 			// make sure we have enough bytes
-			if len(req.payload)-5 != expectedLen {
+			if len(req.Payload)-5 != expectedLen {
 				err = ErrProtocolError
 				break
 			}
@@ -554,41 +554,40 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			_, err = ms.handler.HandleCoils(&CoilsRequest{
 				ClientAddr: clientAddr,
 				ClientRole: clientRole,
-				UnitId:     req.unitId,
+				UnitId:     req.UnitId,
 				Addr:       addr,
 				Quantity:   quantity,
 				IsWrite:    true, // this is a write request
-				Args:       decodeBools(quantity, req.payload[5:]),
+				Args:       decodeBools(quantity, req.Payload[5:]),
 			})
-
 			if err != nil {
 				break
 			}
 
 			// assemble a response PDU
-			res = &pdu{
-				unitId:       req.unitId,
-				functionCode: req.functionCode,
+			res = &PDU{
+				UnitId:       req.UnitId,
+				FunctionCode: req.FunctionCode,
 			}
 
 			// echo the address and quantity in the response
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16ToBytes(BIG_ENDIAN, addr)...)
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16ToBytes(BIG_ENDIAN, quantity)...)
 
 		case fcReadHoldingRegisters, fcReadInputRegisters:
 			var regs []uint16
 			var resCount int
 
-			if len(req.payload) != 4 {
+			if len(req.Payload) != 4 {
 				err = ErrProtocolError
 				break
 			}
 
 			// decode address and quantity fields
-			addr = bytesToUint16(BIG_ENDIAN, req.payload[0:2])
-			quantity = bytesToUint16(BIG_ENDIAN, req.payload[2:4])
+			addr = bytesToUint16(BIG_ENDIAN, req.Payload[0:2])
+			quantity = bytesToUint16(BIG_ENDIAN, req.Payload[2:4])
 
 			// ensure the reply never exceeds the maximum PDU length and we
 			// never read past 0xffff
@@ -602,12 +601,12 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			}
 
 			// invoke the appropriate handler
-			if req.functionCode == fcReadHoldingRegisters {
+			if req.FunctionCode == fcReadHoldingRegisters {
 				regs, err = ms.handler.HandleHoldingRegisters(
 					&HoldingRegistersRequest{
 						ClientAddr: clientAddr,
 						ClientRole: clientRole,
-						UnitId:     req.unitId,
+						UnitId:     req.UnitId,
 						Addr:       addr,
 						Quantity:   quantity,
 						IsWrite:    false,
@@ -618,7 +617,7 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 					&InputRegistersRequest{
 						ClientAddr: clientAddr,
 						ClientRole: clientRole,
-						UnitId:     req.unitId,
+						UnitId:     req.UnitId,
 						Addr:       addr,
 						Quantity:   quantity,
 					})
@@ -638,70 +637,69 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			}
 
 			// assemble a response PDU
-			res = &pdu{
-				unitId:       req.unitId,
-				functionCode: req.functionCode,
-				payload:      []byte{0},
+			res = &PDU{
+				UnitId:       req.UnitId,
+				FunctionCode: req.FunctionCode,
+				Payload:      []byte{0},
 			}
 
 			// byte count (2 bytes per register)
-			res.payload[0] = uint8(resCount * 2)
+			res.Payload[0] = uint8(resCount * 2)
 
 			// register values
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16sToBytes(BIG_ENDIAN, regs)...)
 
 		case fcWriteSingleRegister:
 			var value uint16
 
-			if len(req.payload) != 4 {
+			if len(req.Payload) != 4 {
 				err = ErrProtocolError
 				break
 			}
 
 			// decode address and value fields
-			addr = bytesToUint16(BIG_ENDIAN, req.payload[0:2])
-			value = bytesToUint16(BIG_ENDIAN, req.payload[2:4])
+			addr = bytesToUint16(BIG_ENDIAN, req.Payload[0:2])
+			value = bytesToUint16(BIG_ENDIAN, req.Payload[2:4])
 
 			// invoke the handler
 			_, err = ms.handler.HandleHoldingRegisters(
 				&HoldingRegistersRequest{
 					ClientAddr: clientAddr,
 					ClientRole: clientRole,
-					UnitId:     req.unitId,
+					UnitId:     req.UnitId,
 					Addr:       addr,
 					Quantity:   1,    // request for a single register
 					IsWrite:    true, // request is a write
 					Args:       []uint16{value},
 				})
-
 			if err != nil {
 				break
 			}
 
 			// assemble a response PDU
-			res = &pdu{
-				unitId:       req.unitId,
-				functionCode: req.functionCode,
+			res = &PDU{
+				UnitId:       req.UnitId,
+				FunctionCode: req.FunctionCode,
 			}
 
 			// echo the address and value in the response
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16ToBytes(BIG_ENDIAN, addr)...)
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16ToBytes(BIG_ENDIAN, value)...)
 
 		case fcWriteMultipleRegisters:
 			var expectedLen int
 
-			if len(req.payload) < 6 {
+			if len(req.Payload) < 6 {
 				err = ErrProtocolError
 				break
 			}
 
 			// decode address and quantity fields
-			addr = bytesToUint16(BIG_ENDIAN, req.payload[0:2])
-			quantity = bytesToUint16(BIG_ENDIAN, req.payload[2:4])
+			addr = bytesToUint16(BIG_ENDIAN, req.Payload[0:2])
+			quantity = bytesToUint16(BIG_ENDIAN, req.Payload[2:4])
 
 			// ensure the reply never exceeds the maximum PDU length and we
 			// never read past 0xffff
@@ -717,13 +715,13 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 			// validate the byte count field (2 bytes per register)
 			expectedLen = int(quantity) * 2
 
-			if req.payload[4] != uint8(expectedLen) {
+			if req.Payload[4] != uint8(expectedLen) {
 				err = ErrProtocolError
 				break
 			}
 
 			// make sure we have enough bytes
-			if len(req.payload)-5 != expectedLen {
+			if len(req.Payload)-5 != expectedLen {
 				err = ErrProtocolError
 				break
 			}
@@ -733,37 +731,37 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 				&HoldingRegistersRequest{
 					ClientAddr: clientAddr,
 					ClientRole: clientRole,
-					UnitId:     req.unitId,
+					UnitId:     req.UnitId,
 					Addr:       addr,
 					Quantity:   quantity,
 					IsWrite:    true, // this is a write request
-					Args:       bytesToUint16s(BIG_ENDIAN, req.payload[5:]),
+					Args:       bytesToUint16s(BIG_ENDIAN, req.Payload[5:]),
 				})
 			if err != nil {
 				break
 			}
 
 			// assemble a response PDU
-			res = &pdu{
-				unitId:       req.unitId,
-				functionCode: req.functionCode,
+			res = &PDU{
+				UnitId:       req.UnitId,
+				FunctionCode: req.FunctionCode,
 			}
 
 			// echo the address and quantity in the response
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16ToBytes(BIG_ENDIAN, addr)...)
-			res.payload = append(res.payload,
+			res.Payload = append(res.Payload,
 				uint16ToBytes(BIG_ENDIAN, quantity)...)
 
 		default:
-			res = &pdu{
+			res = &PDU{
 				// reply with the request target unit ID
-				unitId: req.unitId,
+				UnitId: req.UnitId,
 				// set the error bit
-				functionCode: (0x80 | req.functionCode),
+				FunctionCode: (0x80 | req.FunctionCode),
 				// set the exception code to illegal function to indicate that
 				// the server does not know how to handle this function code.
-				payload: []byte{exIllegalFunction},
+				Payload: []byte{exIllegalFunction},
 			}
 		}
 
@@ -786,10 +784,10 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 				t.Close()
 				return
 			} else {
-				res = &pdu{
-					unitId:       req.unitId,
-					functionCode: (0x80 | req.functionCode),
-					payload:      []byte{mapErrorToExceptionCode(err)},
+				res = &PDU{
+					UnitId:       req.UnitId,
+					FunctionCode: (0x80 | req.FunctionCode),
+					Payload:      []byte{mapErrorToExceptionCode(err)},
 				}
 			}
 		}
@@ -812,7 +810,8 @@ func (ms *ModbusServer) handleTransport(t transport, clientAddr string, clientRo
 // startTLS performs a full TLS handshake (with client authentication) on tcpSock
 // and returns a 'wrapped' clear-text socket suitable for use by the TCP transport.
 func (ms *ModbusServer) startTLS(tcpSock net.Conn) (
-	tlsSock *tls.Conn, clientRole string, err error) {
+	tlsSock *tls.Conn, clientRole string, err error,
+) {
 	var connState tls.ConnectionState
 
 	// set a 30s timeout for the TLS handshake to complete

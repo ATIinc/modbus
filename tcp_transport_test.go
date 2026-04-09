@@ -8,15 +8,15 @@ import (
 )
 
 func TestAssembleMBAPFrame(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var frame []byte
 
-	tt = &tcpTransport{}
+	tt = &TCPTransport{}
 
-	frame = tt.assembleMBAPFrame(0x9219, &pdu{
-		unitId:       0x33,
-		functionCode: 0x11,
-		payload:      []byte{0x22, 0x33, 0x44, 0x55},
+	frame = tt.assembleMBAPFrame(0x9219, &PDU{
+		UnitId:       0x33,
+		FunctionCode: 0x11,
+		Payload:      []byte{0x22, 0x33, 0x44, 0x55},
 	})
 	// expect 7 bytes of MBAP header + 1 bytes of function code + 4 bytes of payload
 	if len(frame) != 12 {
@@ -35,10 +35,10 @@ func TestAssembleMBAPFrame(t *testing.T) {
 		}
 	}
 
-	frame = tt.assembleMBAPFrame(0x921a, &pdu{
-		unitId:       0x31,
-		functionCode: 0x06,
-		payload:      []byte{0x12, 0x34},
+	frame = tt.assembleMBAPFrame(0x921a, &PDU{
+		UnitId:       0x31,
+		FunctionCode: 0x06,
+		Payload:      []byte{0x12, 0x34},
 	})
 	// expect 7 bytes of MBAP header + 1 bytes of function code + 2 bytes of payload
 	if len(frame) != 10 {
@@ -60,17 +60,17 @@ func TestAssembleMBAPFrame(t *testing.T) {
 }
 
 func TestTCPTransportReadResponse(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var p1, p2 net.Conn
 	var txchan chan []byte
 	var err error
-	var res *pdu
+	var res *PDU
 
 	txchan = make(chan []byte, 2)
 	p1, p2 = net.Pipe()
 	go feedTestPipe(t, txchan, p1)
 
-	tt = newTCPTransport(p2, 10*time.Millisecond, nil)
+	tt = NewTCPTransport(p2, 10*time.Millisecond, nil)
 	tt.lastTxnId = 0x9218
 
 	// read a valid response
@@ -81,22 +81,22 @@ func TestTCPTransportReadResponse(t *testing.T) {
 		0x31, 0x06, // unit id and function code
 		0x12, 0x34, // payload
 	}
-	res, err = tt.readResponse()
+	res, err = tt.ReadResponse()
 	if err != nil {
 		t.Errorf("readResponse() should have succeeded, got %v", err)
 	}
-	if res.unitId != 0x31 {
-		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.unitId)
+	if res.UnitId != 0x31 {
+		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.UnitId)
 	}
-	if res.functionCode != 0x06 {
-		t.Errorf("expected 0x06 as function code, got 0x%02x", res.functionCode)
+	if res.FunctionCode != 0x06 {
+		t.Errorf("expected 0x06 as function code, got 0x%02x", res.FunctionCode)
 	}
-	if len(res.payload) != 2 {
-		t.Errorf("expected a length of 2, got %v", len(res.payload))
+	if len(res.Payload) != 2 {
+		t.Errorf("expected a length of 2, got %v", len(res.Payload))
 	}
-	if res.payload[0] != 0x12 || res.payload[1] != 0x34 {
+	if res.Payload[0] != 0x12 || res.Payload[1] != 0x34 {
 		t.Errorf("expected {0x12, 0x34} as payload, got {0x%02x, 0x%02x}",
-			res.payload[0], res.payload[1])
+			res.Payload[0], res.Payload[1])
 	}
 
 	// read a frame with an unexpected transaction id followed by a frame with a
@@ -115,22 +115,22 @@ func TestTCPTransportReadResponse(t *testing.T) {
 		0x39, 0x02, // unit id and function code
 		0x10, 0x01, // payload
 	}
-	res, err = tt.readResponse()
+	res, err = tt.ReadResponse()
 	if err != nil {
 		t.Errorf("readResponse() should have succeeded, got %v", err)
 	}
-	if res.unitId != 0x39 {
-		t.Errorf("expected 0x39 as unit id, got 0x%02x", res.unitId)
+	if res.UnitId != 0x39 {
+		t.Errorf("expected 0x39 as unit id, got 0x%02x", res.UnitId)
 	}
-	if res.functionCode != 0x02 {
-		t.Errorf("expected 0x02 as function code, got 0x%02x", res.functionCode)
+	if res.FunctionCode != 0x02 {
+		t.Errorf("expected 0x02 as function code, got 0x%02x", res.FunctionCode)
 	}
-	if len(res.payload) != 2 {
-		t.Errorf("expected a length of 2, got %v", len(res.payload))
+	if len(res.Payload) != 2 {
+		t.Errorf("expected a length of 2, got %v", len(res.Payload))
 	}
-	if res.payload[0] != 0x10 || res.payload[1] != 0x01 {
+	if res.Payload[0] != 0x10 || res.Payload[1] != 0x01 {
 		t.Errorf("expected {0x10, 0x01 as payload, got {0x%02x, 0x%02x}",
-			res.payload[0], res.payload[1])
+			res.Payload[0], res.Payload[1])
 	}
 
 	// read a frame with an illegal length, preceded by a frame with an unexpected
@@ -149,7 +149,7 @@ func TestTCPTransportReadResponse(t *testing.T) {
 		0x00, 0x01, // length (big endian)
 		0x31, // unit id
 	}
-	res, err = tt.readResponse()
+	res, err = tt.ReadResponse()
 	if err != ErrProtocolError {
 		t.Errorf("readResponse() should have returned ErrProtocolError, got %v", err)
 	}
@@ -165,18 +165,18 @@ func TestTCPTransportReadResponse(t *testing.T) {
 		0x88, 0x99, // payload
 		0xaa, 0xbb, // payload
 	}
-	res, err = tt.readResponse()
+	res, err = tt.ReadResponse()
 	if err != nil {
 		t.Errorf("readResponse() should have succeeded, got %v", err)
 	}
-	if res.unitId != 0x31 {
-		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.unitId)
+	if res.UnitId != 0x31 {
+		t.Errorf("expected 0x31 as unit id, got 0x%02x", res.UnitId)
 	}
-	if res.functionCode != 0x32 {
-		t.Errorf("expected 0x32 as response code, got 0x%02x", res.functionCode)
+	if res.FunctionCode != 0x32 {
+		t.Errorf("expected 0x32 as response code, got 0x%02x", res.FunctionCode)
 	}
-	if len(res.payload) != 8 {
-		t.Errorf("expected a length of 8, got %v", len(res.payload))
+	if len(res.Payload) != 8 {
+		t.Errorf("expected a length of 8, got %v", len(res.Payload))
 	}
 	for i, b := range []byte{
 		0x44, 0x55,
@@ -184,9 +184,9 @@ func TestTCPTransportReadResponse(t *testing.T) {
 		0x88, 0x99,
 		0xaa, 0xbb,
 	} {
-		if res.payload[i] != b {
+		if res.Payload[i] != b {
 			t.Errorf("expected 0x%02x at position %v, got 0x%02x",
-				b, i, res.payload[i])
+				b, i, res.Payload[i])
 		}
 	}
 
@@ -197,7 +197,7 @@ func TestTCPTransportReadResponse(t *testing.T) {
 		0x10, 0x0a, // length (big endian)
 		0x31, // unit id
 	}
-	res, err = tt.readResponse()
+	res, err = tt.ReadResponse()
 	if err != ErrProtocolError {
 		t.Errorf("readResponse() should have returned ErrProtocolError, got %v", err)
 	}
@@ -209,17 +209,17 @@ func TestTCPTransportReadResponse(t *testing.T) {
 }
 
 func TestTCPTransportReadRequest(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var p1, p2 net.Conn
 	var txchan chan []byte
 	var err error
-	var req *pdu
+	var req *PDU
 
 	txchan = make(chan []byte, 2)
 	p1, p2 = net.Pipe()
 	go feedTestPipe(t, txchan, p1)
 
-	tt = newTCPTransport(p2, 10*time.Millisecond, nil)
+	tt = NewTCPTransport(p2, 10*time.Millisecond, nil)
 	tt.lastTxnId = 0x0a00
 
 	// push three frames in a row:
@@ -274,16 +274,16 @@ func TestTCPTransportReadRequest(t *testing.T) {
 		t.Errorf("ReadRequest() should have succeeded, got %v", err)
 	}
 	if req == nil {
-		t.Errorf("ReadREsponse() should have returned a non-nil request")
+		t.Errorf("ReadRequest() should have returned a non-nil request")
 	}
-	if req.unitId != 0xfa {
-		t.Errorf("expected 0xfa as unit id, got 0x%02x", req.unitId)
+	if req.UnitId != 0xfa {
+		t.Errorf("expected 0xfa as unit id, got 0x%02x", req.UnitId)
 	}
-	if req.functionCode != 0x04 {
-		t.Errorf("expected 0x04 as response code, got 0x%02x", req.functionCode)
+	if req.FunctionCode != 0x04 {
+		t.Errorf("expected 0x04 as response code, got 0x%02x", req.FunctionCode)
 	}
-	if len(req.payload) != 8 {
-		t.Errorf("expected a length of 8, got %v", len(req.payload))
+	if len(req.Payload) != 8 {
+		t.Errorf("expected a length of 8, got %v", len(req.Payload))
 	}
 	for i, b := range []byte{
 		0x44, 0x55,
@@ -291,9 +291,9 @@ func TestTCPTransportReadRequest(t *testing.T) {
 		0x88, 0x99,
 		0xaa, 0xbb,
 	} {
-		if req.payload[i] != b {
+		if req.Payload[i] != b {
 			t.Errorf("expected 0x%02x at position %v, got 0x%02x",
-				b, i, req.payload[i])
+				b, i, req.Payload[i])
 		}
 	}
 	if tt.lastTxnId != 0x9218 {
@@ -304,7 +304,7 @@ func TestTCPTransportReadRequest(t *testing.T) {
 }
 
 func TestTCPTransportWriteResponse(t *testing.T) {
-	var tt *tcpTransport
+	var tt *TCPTransport
 	var p1, p2 net.Conn
 	var done chan bool
 	var err error
@@ -345,13 +345,13 @@ func TestTCPTransportWriteResponse(t *testing.T) {
 		return
 	}(t, p2, done)
 
-	tt = newTCPTransport(p1, 10*time.Millisecond, nil)
+	tt = NewTCPTransport(p1, 10*time.Millisecond, nil)
 	tt.lastTxnId = 0xc01f
 
-	err = tt.WriteResponse(&pdu{
-		unitId:       0x17,
-		functionCode: 0x06,
-		payload: []byte{
+	err = tt.WriteResponse(&PDU{
+		UnitId:       0x17,
+		FunctionCode: 0x06,
+		Payload: []byte{
 			0x44, 0x55, // payload
 			0x66, 0x77, // payload
 			0x88, 0x99, // payload

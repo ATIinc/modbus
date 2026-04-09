@@ -58,7 +58,7 @@ func (rt *rtuTransport) Close() (err error) {
 }
 
 // Runs a request across the rtu link and returns a response.
-func (rt *rtuTransport) ExecuteRequest(req *pdu) (res *pdu, err error) {
+func (rt *rtuTransport) ExecuteRequest(req *PDU) (res *PDU, err error) {
 	var ts time.Time
 	var t time.Duration
 	var n int
@@ -112,7 +112,7 @@ func (rt *rtuTransport) ExecuteRequest(req *pdu) (res *pdu, err error) {
 }
 
 // Reads a request from the rtu link.
-func (rt *rtuTransport) ReadRequest() (req *pdu, err error) {
+func (rt *rtuTransport) ReadRequest() (req *PDU, err error) {
 	// reading requests from RTU links is currently unsupported
 	err = fmt.Errorf("unimplemented")
 
@@ -120,7 +120,7 @@ func (rt *rtuTransport) ReadRequest() (req *pdu, err error) {
 }
 
 // Writes a response to the rtu link.
-func (rt *rtuTransport) WriteResponse(res *pdu) (err error) {
+func (rt *rtuTransport) WriteResponse(res *PDU) (err error) {
 	var n int
 
 	// build an RTU ADU out of the request object and
@@ -136,7 +136,7 @@ func (rt *rtuTransport) WriteResponse(res *pdu) (err error) {
 }
 
 // Waits for, reads and decodes a frame from the rtu link.
-func (rt *rtuTransport) readRTUFrame() (res *pdu, err error) {
+func (rt *rtuTransport) readRTUFrame() (res *PDU, err error) {
 	var rxbuf []byte
 	var byteCount int
 	var bytesNeeded int
@@ -190,23 +190,23 @@ func (rt *rtuTransport) readRTUFrame() (res *pdu, err error) {
 		return
 	}
 
-	res = &pdu{
-		unitId:       rxbuf[0],
-		functionCode: rxbuf[1],
+	res = &PDU{
+		UnitId:       rxbuf[0],
+		FunctionCode: rxbuf[1],
 		// pass the byte count + trailing data as payload, withtout the CRC
-		payload: rxbuf[2 : 3+bytesNeeded-2],
+		Payload: rxbuf[2 : 3+bytesNeeded-2],
 	}
 
 	return
 }
 
 // Turns a PDU object into bytes.
-func (rt *rtuTransport) assembleRTUFrame(p *pdu) (adu []byte) {
+func (rt *rtuTransport) assembleRTUFrame(p *PDU) (adu []byte) {
 	var crc crc
 
-	adu = append(adu, p.unitId)
-	adu = append(adu, p.functionCode)
-	adu = append(adu, p.payload...)
+	adu = append(adu, p.UnitId)
+	adu = append(adu, p.FunctionCode)
+	adu = append(adu, p.Payload...)
 
 	// run the ADU through the CRC generator
 	crc.init()
@@ -254,7 +254,7 @@ func expectedResponseLenth(responseCode uint8, responseLength uint8) (byteCount 
 // Note that on a serial line, this call may block for up to serialConf.Timeout
 // i.e. 10ms.
 func discard(link rtuLink) {
-	var rxbuf = make([]byte, 1024)
+	rxbuf := make([]byte, 1024)
 
 	link.SetDeadline(time.Now().Add(500 * time.Microsecond))
 	io.ReadFull(link, rxbuf)
